@@ -6,8 +6,10 @@ export default function Home() {
   const form = useRef(null)
   const handleSubmit = async (e: React.ChangeEvent<HTMLFormElement>) => {
     e.preventDefault()
+    console.log(e)
     if (form.current) {
       const formData = new FormData(form.current)
+      console.log(formData)
       const response = await fetch('/api/dsn', {
         method: 'POST',
         body: formData,
@@ -32,11 +34,11 @@ export default function Home() {
       <main className="container">
         <form ref={form} onSubmit={handleSubmit} encType='multipart/form-data'>
           <div className="form-group">
-            <label htmlFor="">Selectionner vos fichiers DSN</label>
-            <input type="file" className="form-control" id="dsn" />
+            <label htmlFor="dsn">Selectionner vos fichiers DSN</label>
+            <input type="file" name='dsn' className="form-control" id="dsn" accept=".dsn,.txt" multiple />
           </div>
 
-          <button type='submit'>Envoyer les fichiers</button>
+          <input type='submit' />
         </form>
 
       </main>
