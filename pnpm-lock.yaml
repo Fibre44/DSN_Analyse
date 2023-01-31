@@ -1,7 +1,7 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@fibre44/dsn-parser': ^0.6.0
+  '@fibre44/dsn-parser': ^0.7.1
   '@next/font': 13.1.2
   '@types/formidable': ^2.0.5
   '@types/node': 18.11.18
@@ -18,7 +18,7 @@ specifiers:
   typescript: 4.9.4
 
 dependencies:
-  '@fibre44/dsn-parser': 0.6.0
+  '@fibre44/dsn-parser': 0.7.1
   '@next/font': 13.1.2
   '@types/formidable': 2.0.5
   '@types/node': 18.11.18
@@ -83,8 +83,8 @@ packages:
       lodash.uniq: 4.5.0
     dev: false
 
-  /@fibre44/dsn-parser/0.6.0:
-    resolution: {integrity: sha512-rEUSzCxbRD7rN3RS2I/IkipwRvH93u2JZdEns8UYW/t5CcWdz0lOaVI7OL2jr3P94xcO/3hf3ZeeB9Fa3NqlIw==}
+  /@fibre44/dsn-parser/0.7.1:
+    resolution: {integrity: sha512-Jvjr3YCKCqdgw+knV5XunJuO3M08oUzFmwRFl3dNdNoZ98dAsC1CqddAy9GCy2mRf/CDhOC9fnpCnP1/3HD76A==}
     dev: false
 
   /@humanwhocodes/config-array/0.11.8:

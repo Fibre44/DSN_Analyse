@@ -5,7 +5,7 @@ import path from "path";
 import fs from 'fs';
 import { DsnParser } from "@fibre44/dsn-parser";
 import Excel from 'exceljs'
-import { contributionFundObject, dsnObject, EmployeeObject, establishmentObject, mutualEmployeeObject, mutualObject, WorkContractObject } from "@fibre44/dsn-parser/lib/dsn";
+import { BaseObject, ContributionFundObject, ContributionObject, DsnObject, EmployeeObject, EstablishmentObject, MutualEmployeeObject, MutualObject, WorkContractObject } from "@fibre44/dsn-parser/lib/dsn";
 type Data = {
   name?: string,
   error?: string | unknown,
@@ -13,13 +13,14 @@ type Data = {
 } | Buffer
 
 type DataDsn = {
-  dsn: dsnObject,
-  establishment: establishmentObject[],
-  mutualEmployee: mutualEmployeeObject[]
-  mutual: mutualObject[],
-  contributionFund: contributionFundObject[],
+  dsn: DsnObject,
+  establishment: EstablishmentObject[],
+  mutual: MutualObject[],
+  contributionFund: ContributionFundObject[],
   employee: EmployeeObject[],
-  workContract: WorkContractObject[]
+  workContract: WorkContractObject[],
+  base: BaseObject[],
+  contribution: ContributionObject[]
 }
 export const config = {
   api: {
@@ -96,11 +97,12 @@ export default async function handler(
           let data: DataDsn = {
             dsn: dsnParser.dsn,
             establishment: dsnParser.establishment,
-            mutualEmployee: dsnParser.employeeMutual,
             mutual: dsnParser.mutual,
             contributionFund: dsnParser.contributionFund,
             employee: dsnParser.employee,
-            workContract: dsnParser.workContract
+            workContract: dsnParser.workContract,
+            contribution: dsnParser.contribution,
+            base: dsnParser.base
           }
           datas.push(data)
         } catch (e) {
@@ -141,49 +143,75 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
   workbook.addWorksheet('Individus', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Contrat_travail', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Affiliations', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Base', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Cotisations', { properties: { tabColor: { argb: 'FFC0000' } } });
   for (let data of datas) {
     //Gestion de la feuille DSN
-    const dsnWorkboox = workbook.getWorksheet('DSN')
-    dsnWorkboox.columns = [
+    const dsnSheet = workbook.getWorksheet('DSN')
+    dsnSheet.columns = [
+      { header: 'Mois', key: 'month', width: 10, outlineLevel: 1 },
       { header: 'Nom du logiciel', key: 'softwareName', width: 25 },
       { header: 'Fournisseur', key: 'provider', width: 10 },
       { header: 'Version du logiciel', key: 'softwareVersion', width: 10, outlineLevel: 1 },
       { header: 'type', key: 'type', width: 10, outlineLevel: 1 },
-      { header: 'Mois', key: 'month', width: 10, outlineLevel: 1 },
     ];
-    dsnWorkboox.addRow({
+    dsnSheet.addRow({
+      month: data.dsn.month,
       softwareName: data.dsn.softwareName,
       provider: data.dsn.provider,
       softwareVersion: data.dsn.softwareName,
       type: data.dsn.type,
-      month: data.dsn.month
     })
     //Gestion des établissements
-    const establishmentWorkboox = workbook.getWorksheet('Etablissement')
-    establishmentWorkboox.columns = [
+    const establishmentSheet = workbook.getWorksheet('Etablissement')
+    establishmentSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
       { header: 'NIC', key: 'nic', width: 25 },
       { header: 'Code APET', key: 'apet', width: 25 },
       { header: 'Adresse', key: 'adress1', width: 25 },
       { header: 'Complément adresse', key: 'adress2', width: 25 },
       { header: 'Code postal', key: 'codeZip', width: 25 },
-      { header: 'Mois', key: 'month', width: 25 },
 
     ]
     for (let establishment of data.establishment) {
-      establishmentWorkboox.addRow({
+      establishmentSheet.addRow({
+        month: data.dsn.month,
         nic: establishment.nic,
         apet: establishment.apet,
         adress1: establishment.adress1,
         adress2: establishment.adress2,
         codeZip: establishment.codeZip,
-        month: data.dsn.month
       })
     }
 
+    //Gestion des OPS
+
+    const contributionFundSheet = workbook.getWorksheet('Organismes_sociaux')
+    contributionFundSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Code DSN', key: 'codeDsn', width: 25 },
+      { header: 'Organisme', key: 'name', width: 25 },
+      { header: 'Adresse', key: 'adress1', width: 25 },
+      { header: 'Code postal', key: 'codeZip', width: 25 },
+      { header: 'Ville', key: 'city', width: 25 },
+      { header: 'siret', key: 'siret', width: 25 },
+    ]
+
+    for (let contributionFund of data.contributionFund) {
+      contributionFundSheet.addRow({
+        month: data.dsn.month,
+        codeDsn: contributionFund.codeDsn,
+        name: contributionFund.name,
+        adress1: contributionFund.adress1,
+        codeZip: contributionFund.codeZip,
+        city: contributionFund.city,
+        siret: contributionFund.siret,
+      })
+    }
     //Gestion des individus
-    const employeeWorkboox = workbook.getWorksheet('Individus')
-    employeeWorkboox.columns = [
+    const employeeSheet = workbook.getWorksheet('Individus')
+    employeeSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
       { header: 'Matricule', key: 'employeeId', width: 25 },
       { header: 'Numéro de Sécurité Sociale', key: 'numSS', width: 25 },
       { header: 'Département de naissance', key: 'codeZipBith', width: 25 },
@@ -195,12 +223,18 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
       { header: 'Date anniversaire', key: 'birthday', width: 25 },
       { header: 'Lieu de naissance', key: 'placeOfBith', width: 25 },
       { header: 'Adresse', key: 'address1', width: 25 },
+      { header: 'Complément de la localisation de la construction', key: 'address2', width: 25 },
+      { header: 'Service de distribution, complément de localisation de la voie', key: 'address3', width: 25 },
       { header: 'Code postal', key: 'codeZip', width: 25 },
       { header: 'Ville', key: 'city', width: 25 },
       { header: 'Email', key: 'email', width: 25 },
+      { header: 'Niveau etude', key: 'graduate', width: 25 },
+      { header: `Niveau de diplôme préparé par l'individu`, key: 'v', width: 25 },
+
     ]
     for (let employee of data.employee) {
-      employeeWorkboox.addRow({
+      employeeSheet.addRow({
+        month: data.dsn.month,
         employeeId: employee.employeeId,
         numSS: employee.numSS,
         codeZipBith: employee.codeZipBith,
@@ -212,16 +246,247 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
         birthday: employee.birthday,
         placeOfBith: employee.placeOfBith,
         address1: employee.address1,
+        address2: employee?.address2,
+        address3: employee?.address3,
         codeZip: employee.codeZip,
         city: employee.city,
-        email: employee.email
+        email: employee.email,
+        graduate: employee?.graduate,
+        studies: employee?.studies
       })
     }
 
+    //Gestion des contrats de travail
+    const workContractSheet = workbook.getWorksheet('Contrat_travail')
+    workContractSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Matricule', key: 'employeeId', width: 25 },
+      { header: 'Date début de contrat', key: 'startDate', width: 25 },
+      { header: 'Date de fin prévisionnelle du contrat', key: 'endDate', width: 25 },
+      { header: 'Statut du salarié (conventionnel)', key: 'status', width: 25 },
+      { header: 'Code statut catégoriel Retraite Complémentaire obligatoire', key: 'retirement', width: 25 },
+      { header: 'Code profession et catégorie socioprofessionnelle (PCS-ESE)', key: 'pcs', width: 25 },
+      { header: 'Code complément PCS-ESE (pour la fonction publique : référentiels NEH, NET et grade de la NNE)', key: 'pcsBis', width: 25 },
+      { header: `Libellé de l'emploi`, key: 'employmentLabel', width: 25 },
+      { header: 'Nature du contrat', key: 'contract', width: 25 },
+      { header: 'Dispositif de politique publique et conventionnel', key: 'publicDispPolitic', width: 25 },
+      { header: 'Numéro du contrat', key: 'contractId', width: 25 },
+      { header: 'Unité de mesure de la quotité de travail', key: 'DNACodeUnitTime', width: 25 },
+      { header: `Quotité de travail de référence de l'entreprise pour la catégorie de salarié`, key: 'DSNWorkQuotaEstablishment', width: 25 },
+      { header: `Quotité de travail du contrat`, key: 'DSNWorkQuotaWorkContract', width: 25 },
+      { header: `Modalité d'exercice du temps de travail`, key: 'workTime', width: 25 },
+      { header: `Complément de base au régime obligatoire`, key: 'ss', width: 25 },
+      { header: `Code convention collective applicable`, key: 'idcc', width: 25 },
+      { header: `Code régime de base risque maladie`, key: 'mal', width: 25 },
+      { header: `Identifiant du lieu de travail`, key: 'estabWorkPlace', width: 25 },
+      { header: `Code régime de base risque vieillesse`, key: 'vieillesse', width: 25 },
+      { header: `Motif de recours`, key: 'pattern', width: 25 },
+      { header: `Code caisse professionnelle de congés payés`, key: 'vacation', width: 25 },
+      { header: `Taux de déduction forfaitaire spécifique pour frais professionnels`, key: 'rateProfessionalFess', width: 25 },
+      { header: `Travailleur à l'étranger au sens du code de la Sécurité Sociale`, key: 'foreigner', width: 25 },
+      { header: `Motif d'exclusion DSN`, key: 'exclusionDsn', width: 25 },
+      { header: `Statut d'emploi du salarié`, key: 'statusEmployment', width: 25 },
+      { header: `Code affectation Assurance chômage`, key: 'unemployment', width: 25 },
+      { header: `Numéro interne employeur public`, key: 'idPublicEmployer', width: 25 },
+      { header: `Type de gestion de l’Assurance chômage`, key: 'methodUnemployment', width: 25 },
+      { header: `Date d'adhésion`, key: 'joiningDate', width: 25 },
+      { header: `Date de dénonciation`, key: 'denunciationDate', width: 25 },
+      { header: `Date d’effet de la convention de gestion`, key: 'dateManagementAgreement', width: 25 },
+      { header: `Numéro de convention de gestion`, key: 'idAgreement', width: 25 },
+      { header: `Code délégataire du risque maladie`, key: 'healthRiskDelegate', width: 25 },
+      { header: `Code emplois multiples`, key: 'multipleJobCode', width: 25 },
+      { header: `Code employeurs multiples`, key: 'multipleEmployerCode', width: 25 },
+      { header: `Code régime de base risque accident du travail`, key: 'workAccidentRisk', width: 25 },
+      { header: `Code risque accident du travail`, key: 'idWorkAccidentRisk', width: 25 },
+      { header: `Positionnement dans la convention collective`, key: 'positionCollectiveAgreement', width: 25 },
+      { header: `Code statut catégoriel APECITA`, key: 'apecita', width: 25 },
+      { header: `Taux de cotisation accident du travail`, key: 'rateAt', width: 25 },
+      { header: `Salarié à temps partiel cotisant à temps plein`, key: 'contributingFullTime', width: 25 },
+      { header: `Rémunération au pourboire`, key: 'tip', width: 25 },
+      { header: `Identifiant de l’établissement utilisateur`, key: 'useEstablishmentId', width: 25 },
+      { header: `Numéro de label « Prestataire de services du spectacle vivant`, key: 'livePerfomances', width: 25 },
+      { header: `Numéro de licence entrepreneur spectacle`, key: 'licences', width: 25 },
+      { header: `Numéro objet spectacle`, key: 'showId', width: 25 },
+      { header: `Statut organisateur spectacle`, key: 'showrunner', width: 25 },
+      { header: `[FP] Code complément PCS-ESE pour la fonction publique d'Etat(emploi de la NNE)`, key: 'fpPcs', width: 25 },
+      { header: `Nature du poste`, key: 'typePosition', width: 25 },
+      { header: `[FP] Quotité de travail de référence de l'entreprise pour la catégorie de salarié dans l’hypothèse d’un poste à temps complet`, key: 'fpQuotite', width: 25 },
+      { header: `Taux de travail à temps partiel`, key: 'partTimeWork', width: 25 },
+      { header: `Code catégorie de service`, key: 'serviceCode', width: 25 },
+      { header: `[FP] Indice brut`, key: 'fpIndice', width: 25 },
+      { header: `[FP] Indice majoré`, key: 'fpIndiceMaj', width: 25 },
+      { header: `[FP] Nouvelle bonification indiciaire (NBI)`, key: 'NBI', width: 25 },
+      { header: `[FP] Indice brut d'origine`, key: 'indiceOriginal', width: 25 },
+      { header: `[FP] Indice brut de cotisation dans un emploi supérieur (article 15)`, key: 'article15', width: 25 },
+      { header: `[FP] Ancien employeur public`, key: 'oldEstablishment', width: 25 },
+      { header: `[FP] Indice brut d’origine ancien salarié employeur public`, key: 'oldIndice', width: 25 },
+      { header: `[FP] Indice brut d’origine sapeur-pompier professionnel (SPP)`, key: 'SPP', width: 25 },
+      { header: `[FP] Maintien du traitement d'origine d'un contractuel titulaire`, key: 'contractual', width: 25 },
+      { header: `[FP] Type de détachement`, key: 'secondment', width: 25 },
+      { header: `Genre de navigation`, key: 'browsing', width: 25 },
+      { header: `Taux de service actif`, key: 'activityDutyRate', width: 25 },
+      { header: `Niveau de rémunération`, key: 'payLevel', width: 25 },
+      { header: `Echelon`, key: 'echelon', width: 25 },
+      { header: `Coefficient`, key: 'coefficient', width: 25 },
+      { header: `Statut BOETH`, key: 'boeth', width: 25 },
+      { header: `Complément de dispositif de politique publique`, key: 'addPublicPolicy', width: 25 },
+      { header: `Cas de mise à disposition externe d'un individu de l'établissement`, key: 'arrangement', width: 25 },
+      { header: `Catégorie de classement finale`, key: 'finaly', width: 25 },
+      { header: `Identifiant du contrat d'engagement maritime`, key: 'navy', width: 25 },
+      { header: `Collège (CNIEG)`, key: 'cnieg', width: 25 },
+      { header: `Forme d'aménagement du temps de travail dans le cadre de l'activité partielle`, key: 'activityRate', width: 25 },
+      { header: `Grade`, key: 'grade', width: 25 },
+      { header: `[FP] Indice complément de traitement indiciaire (CTI)`, key: 'cti', width: 25 },
+      { header: `FINESS géographique`, key: 'finess', width: 25 },
+
+    ]
+
+    for (let workContract of data.workContract) {
+      workContractSheet.addRow({
+        month: data.dsn.month,
+        employeeId: workContract.employeeId,
+        startDate: workContract.startDate,
+        endDate: workContract?.contractEndDate,
+        status: workContract?.status,
+        retirement: workContract.retirement,
+        pcs: workContract.pcs,
+        pcsBis: workContract.pcsBis,
+        employmentLabel: workContract.employmentLabel,
+        contract: workContract.contract,
+        publicDispPolitic: workContract.publicDispPolitic,
+        contractId: workContract.contract,
+        DNACodeUnitTime: workContract.DNACodeUnitTime,
+        DSNWorkQuotaEstablishment: workContract.DSNWorkQuotaEstablishment,
+        DSNWorkQuotaWorkContract: workContract.DSNWorkQuotaWorkContract,
+        workTime: workContract.workTime,
+        ss: workContract.ss,
+        idcc: workContract.idcc,
+        mal: workContract.mal,
+        estabWorkPlace: workContract.estabWorkPlace,
+        vieillesse: workContract.vieillesse,
+        pattern: workContract.pattern,
+        vacation: workContract.vacation,
+        rateProfessionalFess: workContract?.rateProfessionalFess,
+        foreigner: workContract?.foreigner,
+        exclusionDsn: workContract?.exclusionDsn,
+        statusEmployment: workContract.statusEmployment,
+        unemployment: workContract.unemployment,
+        idPublicEmployer: workContract.idPublicEmployer,
+        methodUnemployment: workContract.methodUnemployment,
+        joiningDate: workContract.joiningDate,
+        denunciationDate: workContract.denunciationDate,
+        dateManagementAgreement: workContract.dateManagementAgreement,
+        idAgreement: workContract.idAgreement,
+        healthRiskDelegate: workContract.healthRiskDelegate,
+        multipleJobCode: workContract.multipleJobCode,
+        multipleEmployerCode: workContract.multipleEmployerCode,
+        workAccidentRisk: workContract.workAccidentRisk,
+        idWorkAccidentRisk: workContract.idWorkAccidentRisk,
+        positionCollectiveAgreement: workContract.positionCollectiveAgreement,
+        apecita: workContract.apecita,
+        rateAt: workContract.rateAt,
+        contributingFullTime: workContract.contributingFullTime,
+        tip: workContract.tip,
+        useEstablishmentId: workContract.useEstablishmentId,
+        livePerfomances: workContract?.livePerfomances,
+        licences: workContract?.licences,
+        showId: workContract?.showId,
+        showrunner: workContract?.showrunner,
+        fpPcs: workContract?.fpPcs,
+        typePosition: workContract?.typePosition,
+        fpQuotite: workContract?.fpQuotite,
+        partTimeWork: workContract?.partTimeWork,
+        serviceCode: workContract?.serviceCode,
+        fpIndice: workContract?.fpIndice,
+        fpIndiceMaj: workContract?.fpIndiceMaj,
+        NBI: workContract?.NBI,
+        indiceOriginal: workContract?.indiceOriginal,
+        article15: workContract?.article15,
+        oldEstablishment: workContract?.oldEstablishment,
+        oldIndice: workContract?.oldIndice,
+        SPP: workContract?.SPP,
+        contractual: workContract?.contractual,
+        secondment: workContract?.secondment,
+        browsing: workContract?.browsing,
+        activityDutyRate: workContract?.activityDutyRate,
+        payLevel: workContract?.payLevel,
+        echelon: workContract?.echelon,
+        coefficient: workContract?.coefficient,
+        boeth: workContract?.boeth,
+        addPublicPolicy: workContract?.addPublicPolicy,
+        arrangement: workContract?.arrangement,
+        finaly: workContract?.finaly,
+        navy: workContract?.navy,
+        cnieg: workContract?.cnieg,
+        activityRate: workContract?.activityRate,
+        grade: workContract?.grade,
+        cti: workContract?.cti,
+        finess: workContract?.finess
+      })
+    }
+    //Gestion des bases 
+    const baseSheet = workbook.getWorksheet('Base')
+    baseSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Matricule', key: 'employeeId', width: 25 },
+      { header: 'Code de base assujettie', key: 'idBase', width: 25 },
+      { header: 'Date de début de période de rattachement', key: 'startDate', width: 25 },
+      { header: 'Date de fin de période de rattachement', key: 'endDate', width: 25 },
+      { header: 'Montant', key: 'amount', width: 25 },
+      { header: 'Identifiant technique Affiliation', key: 'idTechAff', width: 25 },
+      { header: 'Numéro du contrat', key: 'idContract', width: 25 },
+      { header: 'CRM', key: 'crm', width: 25 },
+
+    ]
+    for (let base of data.base) {
+      baseSheet.addRow({
+        month: base.date,
+        employeeId: base.employeeId,
+        idBase: base.idBase,
+        startDate: base.startDate,
+        endDate: base.endDate,
+        amount: base.amount,
+        idTechAff: base?.idTechAff,
+        idContract: base?.idContract,
+        crm: base?.crm
+
+      })
+    }
+
+    //Gestion des cotisations
+
+    const contributionSheet = workbook.getWorksheet('Cotisations')
+    contributionSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Matricule', key: 'employeeId', width: 25 },
+      { header: 'Code de cotisation', key: 'idContribution', width: 25 },
+      { header: 'Identifiant Organisme de Protection Sociale', key: 'ops', width: 25 },
+      { header: `Montant d assiette`, key: 'baseContribution', width: 25 },
+      { header: `Montant de cotisation`, key: 'amountContribution', width: 25 },
+      { header: `Code INSEE commune`, key: 'idInsee', width: 25 },
+      { header: `Identifiant du CRM à l origine de la régularisation`, key: 'crmContribution', width: 25 },
+      { header: `Taux de cotisation`, key: 'rateContribution', width: 25 },
+
+    ]
+    for (let contribution of data.contribution) {
+      if (contribution.amountContribution) {
+        contributionSheet.addRow({
+          month: contribution.date,
+          employeeId: contribution.employeeId,
+          idContribution: contribution.idContribution,
+          ops: contribution?.ops,
+          baseContribution: contribution?.baseContribution,
+          amountContribution: contribution.amountContribution,
+          idInsee: contribution?.idInsee,
+          crmContribution: contribution?.crmContribution,
+          rateContribution: contribution?.rateContribution
+        })
+      }
+
+    }
+
+    //Ecriture du fichier
+    await workbook.xlsx.writeFile(`${patch}/${fileName}`);
   }
-
-
-  //Ecriture du fichier
-  await workbook.xlsx.writeFile(`${patch}/${fileName}`);
 
 }

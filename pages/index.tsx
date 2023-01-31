@@ -35,10 +35,10 @@ export default function Home() {
         <form ref={form} onSubmit={handleSubmit} encType='multipart/form-data'>
           <div className="form-group">
             <label htmlFor="dsn">Selectionner vos fichiers DSN</label>
-            <input type="file" name='dsn' className="form-control" id="dsn" accept=".dsn,.txt" multiple />
+            <input type="file" name='dsn' className="form-control" id="dsn" accept=".dsn,.txt" multiple required />
           </div>
 
-          <input type='submit' />
+          <button type='submit' className="btn btn-primary" >Envoyer les données</button>
         </form>
 
       </main>

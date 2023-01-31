@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@fibre44/dsn-parser": "^0.6.0",
+    "@fibre44/dsn-parser": "^0.7.1",
     "@next/font": "13.1.2",
     "@types/formidable": "^2.0.5",
     "@types/node": "18.11.18",
