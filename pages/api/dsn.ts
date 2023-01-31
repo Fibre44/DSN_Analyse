@@ -76,6 +76,11 @@ export default async function handler(
     if (req.method != 'POST') {
       return res.status(400).json({ error: 'Vous devez utiliser la méthode POST' })
     }
+    //Création du dossier tmp
+    if (!fs.existsSync(process.cwd() + "/tmp/")) {
+      fs.mkdirSync(process.cwd() + "/tmp/");
+    }
+
     //Etape 2 on va créer un dossier
     const date = Date.now()
     const patch = path.join(process.cwd() + "/tmp/", date.toString())
@@ -83,8 +88,6 @@ export default async function handler(
     fs.mkdirSync(pathString);
     //Etape 3 on va sauvegarder les fichiers
     await saveFile(req, date.toString(), true,);
-
-
     //Etape 4 on liste les fichiers du répértoires
     fs.readdir(pathString, async function (err, items) {
       const datas: DataDsn[] = []
