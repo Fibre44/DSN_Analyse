@@ -18,6 +18,7 @@ type DataDsn = {
   mutual: MutualObject[],
   contributionFund: ContributionFundObject[],
   employee: EmployeeObject[],
+  employeeMutual: MutualEmployeeObject[],
   workContract: WorkContractObject[],
   base: BaseObject[],
   contribution: ContributionObject[]
@@ -95,12 +96,13 @@ export default async function handler(
       for (let i = 0; i < items.length; i++) {
         let dsnParser = new DsnParser()
         try {
-          await dsnParser.init(pathString + '/' + items[i], { controleDsnVersion: true, deleteFile: true })
+          await dsnParser.asyncInit(pathString + '/' + items[i], { controleDsnVersion: true, deleteFile: true })
 
           let data: DataDsn = {
             dsn: dsnParser.dsn,
             establishment: dsnParser.establishment,
             mutual: dsnParser.mutual,
+            employeeMutual: dsnParser.employeeMutual,
             contributionFund: dsnParser.contributionFund,
             employee: dsnParser.employee,
             workContract: dsnParser.workContract,
