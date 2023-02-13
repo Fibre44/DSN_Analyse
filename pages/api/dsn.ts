@@ -5,7 +5,7 @@ import path from "path";
 import fs from 'fs';
 import { DsnParser } from "@fibre44/dsn-parser";
 import Excel from 'exceljs'
-import { BaseObject, ContributionFundObject, ContributionObject, DsnObject, EmployeeObject, EstablishmentObject, MutualEmployeeObject, MutualObject, WorkContractObject } from "@fibre44/dsn-parser/lib/dsn";
+import { BaseObject, atObject, MobilityObject, ContributionFundObject, ContributionObject, DsnObject, EmployeeObject, EstablishmentObject, MutualEmployeeObject, MutualObject, WorkContractObject, WorkStoppingObject } from "@fibre44/dsn-parser/lib/dsn";
 type Data = {
   name?: string,
   error?: string | unknown,
@@ -22,6 +22,9 @@ type DataDsn = {
   workContract: WorkContractObject[],
   base: BaseObject[],
   contribution: ContributionObject[]
+  rateAt: atObject[],
+  rateMobility: MobilityObject[],
+  //workStopping: WorkStoppingObject[]
 }
 export const config = {
   api: {
@@ -97,7 +100,7 @@ export default async function handler(
         let dsnParser = new DsnParser()
         try {
           await dsnParser.asyncInit(pathString + '/' + items[i], { controleDsnVersion: true, deleteFile: true })
-
+          console.log(dsnParser.contribution)
           let data: DataDsn = {
             dsn: dsnParser.dsn,
             establishment: dsnParser.establishment,
@@ -107,7 +110,10 @@ export default async function handler(
             employee: dsnParser.employee,
             workContract: dsnParser.workContract,
             contribution: dsnParser.contribution,
-            base: dsnParser.base
+            base: dsnParser.base,
+            rateAt: dsnParser.rateAt,
+            rateMobility: dsnParser.rateMobility,
+            //workStopping: dsnParser.workStopping
           }
           datas.push(data)
         } catch (e) {
@@ -133,6 +139,7 @@ export default async function handler(
 
 
   } catch (e) {
+    //Etape 7 on supprime le répértoire
     res.status(500).json({ error: e })
   }
 
@@ -144,12 +151,18 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
   const workbook = new Excel.Workbook();
   workbook.addWorksheet('DSN', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Etablissement', { properties: { tabColor: { argb: 'FFC0000' } } });
-  workbook.addWorksheet('Organismes_sociaux', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Organismes sociaux', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Individus', { properties: { tabColor: { argb: 'FFC0000' } } });
-  workbook.addWorksheet('Contrat_travail', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Contrat travail', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Affiliations', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Base', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Base assujeti', { properties: { tabColor: { argb: 'FFC0000' } } });
   workbook.addWorksheet('Cotisations', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Taux AT', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Taux versement transport', { properties: { tabColor: { argb: 'FFC0000' } } });
+  workbook.addWorksheet('Absences', { properties: { tabColor: { argb: 'FFC0000' } } });
+
+
   for (let data of datas) {
     //Gestion de la feuille DSN
     const dsnSheet = workbook.getWorksheet('DSN')
@@ -191,7 +204,7 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
 
     //Gestion des OPS
 
-    const contributionFundSheet = workbook.getWorksheet('Organismes_sociaux')
+    const contributionFundSheet = workbook.getWorksheet('Organismes sociaux')
     contributionFundSheet.columns = [
       { header: 'Mois', key: 'month', width: 25 },
       { header: 'Code DSN', key: 'codeDsn', width: 25 },
@@ -262,7 +275,7 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
     }
 
     //Gestion des contrats de travail
-    const workContractSheet = workbook.getWorksheet('Contrat_travail')
+    const workContractSheet = workbook.getWorksheet('Contrat travail')
     workContractSheet.columns = [
       { header: 'Mois', key: 'month', width: 25 },
       { header: 'Matricule', key: 'employeeId', width: 25 },
@@ -459,7 +472,6 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
     }
 
     //Gestion des cotisations
-
     const contributionSheet = workbook.getWorksheet('Cotisations')
     contributionSheet.columns = [
       { header: 'Mois', key: 'month', width: 25 },
@@ -490,6 +502,86 @@ const createExcelFile = async (patch: string, fileName: string, datas: DataDsn[]
 
     }
 
+    //Gestion des taux AT
+
+    const rateAtSheet = workbook.getWorksheet('Taux AT')
+    rateAtSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Siret', key: 'siret', width: 25 },
+      { header: 'Code risque', key: 'code', width: 25 },
+      { header: 'Taux', key: 'rate', width: 25 },
+
+    ]
+    for (let rateAT of data.rateAt) {
+      rateAtSheet.addRow({
+        month: rateAT?.date,
+        siret: rateAT.siret,
+        code: rateAT.code,
+        rate: rateAT.rate
+      })
+    }
+
+    /** 
+    //Gestion des taux versement transport
+
+    const rateMobilitySheet = workbook.getWorksheet('Taux versement transport')
+    rateMobilitySheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Siret', key: 'siret', width: 25 },
+      { header: 'Code insee', key: 'codeInsee', width: 25 },
+      { header: 'Taux', key: 'rate', width: 25 },
+    ]
+
+    for (let rateMobility of data.rateMobility) {
+      rateMobilitySheet.addRow = ({
+        codeInsee: rateMobility.insee,
+        rate: rateMobility.rate
+      })
+    }
+*/
+    /** 
+    //Gestion des absences 
+
+    const workStoppingSheet = workbook.getWorksheet('Absences')
+    workStoppingSheet.columns = [
+      { header: 'Mois', key: 'month', width: 25 },
+      { header: 'Siret', key: 'siret', width: 25 },
+      { header: `Matricule`, key: 'employeeId', width: 25 },
+      { header: `Motif de l'arrêt`, key: 'reasonStop', width: 25 },
+      { header: 'Date du dernier jour travaillé', key: 'lastDayWorked', width: 25 },
+      { header: 'Date de fin prévisionnelle', key: 'estimatedEndDate', width: 25 },
+      { header: 'Subrogation', key: 'subrogation', width: 25 },
+      { header: 'Date de début de subrogation', key: 'subrogationStartDate', width: 25 },
+      { header: 'Date de début de subrogation', key: 'subrogationEndDate', width: 25 },
+      { header: 'IBAN', key: 'iban', width: 25 },
+      { header: 'BIC', key: 'bic', width: 25 },
+      { header: 'Date de la reprise', key: 'recoveryDate', width: 25 },
+      { header: 'Motif de la reprise', key: 'reasonRecovery', width: 25 },
+      { header: `Date de l'accident ou de la première constatation`, key: 'dateWorkAccident', width: 25 },
+      { header: `SIRET Centralisateur`, key: 'SIRETCentralizer', width: 25 },
+
+    ]
+
+    for (let workStopping of data.workStopping) {
+      workStoppingSheet.addRow({
+        month: workStopping.date,
+        siret: workStopping.siret,
+        employeeId: workStopping.employeeId,
+        reasonStop: workStopping.reasonStop,
+        lastDayWorked: workStopping.lastDayWorked,
+        estimatedEndDate: workStopping?.estimatedEndDate,
+        subrogation: workStopping?.subrogation,
+        subrogationStartDate: workStopping?.subrogationStartDate,
+        subrogationEndDate: workStopping?.subrogationEndDate,
+        iban: workStopping?.iban,
+        bic: workStopping?.bic,
+        recoveryDate: workStopping?.recoveryDate,
+        reasonRecovery: workStopping?.reasonRecovery,
+        dateWorkAccident: workStopping?.dateWorkAccident,
+        SIRETCentralizer: workStopping?.SIRETCentralizer
+      })
+    }
+    */
     //Ecriture du fichier
     await workbook.xlsx.writeFile(`${patch}/${fileName}`);
   }
